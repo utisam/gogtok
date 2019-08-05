@@ -7,8 +7,9 @@ func New() *cobra.Command {
 		Use: "gogtok",
 	}
 
-	cmd.AddCommand(newImport())
 	cmd.AddCommand(newGlue())
+	cmd.AddCommand(newImport())
+	cmd.AddCommand(newList())
 	cmd.AddCommand(newNew())
 
 	return cmd
