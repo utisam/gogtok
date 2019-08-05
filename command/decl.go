@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"regexp"
 
 	"github.com/spf13/cobra"
 )
@@ -44,34 +45,67 @@ func inspectFiles(filenames []string, fn func(f *ast.File) error) error {
 	return nil
 }
 
+func compilePattern(p string) (*regexp.Regexp, error) {
+	if p == "" {
+		return nil, nil
+	}
+	return regexp.Compile(p)
+}
+
+func matchPattern(p *regexp.Regexp, s string) bool {
+	return p == nil || p.MatchString(s)
+}
+
 func newListFuncs() *cobra.Command {
+	var pattern string
+
 	cmd := &cobra.Command{
 		Use:   "funcs",
 		Short: "List functions of the file",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
+			patternRegexp, err := compilePattern(pattern)
+			if err != nil {
+				return err
+			}
+
 			inspectFiles(args, func(f *ast.File) error {
 				for _, decl := range f.Decls {
 					fnDecl, ok := decl.(*ast.FuncDecl)
 					if !ok {
 						continue
 					}
-					fmt.Println(fnDecl.Name.Name)
+
+					name := fnDecl.Name.Name
+					if matchPattern(patternRegexp, name) {
+						fmt.Println(name)
+					}
 				}
 				return nil
 			})
 			return nil
 		},
 	}
+
+	flags := cmd.Flags()
+	flags.StringVarP(&pattern, "pattern", "p", pattern, "Only print names matching the pattern")
+
 	return cmd
 }
 
 func newListValues() *cobra.Command {
+	var pattern string
+
 	cmd := &cobra.Command{
 		Use:   "values",
 		Short: "List variables of the file",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
+			patternRegexp, err := compilePattern(pattern)
+			if err != nil {
+				return err
+			}
+
 			inspectFiles(args, func(f *ast.File) error {
 				for _, decl := range f.Decls {
 					genDecl, ok := decl.(*ast.GenDecl)
@@ -85,8 +119,11 @@ func newListValues() *cobra.Command {
 							continue
 						}
 
-						for _, name := range valSpec.Names {
-							fmt.Println(name)
+						for _, nameIdent := range valSpec.Names {
+							name := nameIdent.Name
+							if matchPattern(patternRegexp, name) {
+								fmt.Println(name)
+							}
 						}
 					}
 				}
@@ -96,15 +133,25 @@ func newListValues() *cobra.Command {
 		},
 	}
 
+	flags := cmd.Flags()
+	flags.StringVarP(&pattern, "pattern", "p", pattern, "Only print names matching the pattern")
+
 	return cmd
 }
 
 func newListTypes() *cobra.Command {
+	var pattern string
+
 	cmd := &cobra.Command{
 		Use:   "types",
 		Short: "List types of the file",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
+			patternRegexp, err := compilePattern(pattern)
+			if err != nil {
+				return err
+			}
+
 			inspectFiles(args, func(f *ast.File) error {
 				for _, decl := range f.Decls {
 					genDecl, ok := decl.(*ast.GenDecl)
@@ -118,7 +165,10 @@ func newListTypes() *cobra.Command {
 							continue
 						}
 
-						fmt.Println(typeSpec.Name.Name)
+						name := typeSpec.Name.Name
+						if matchPattern(patternRegexp, name) {
+							fmt.Println(name)
+						}
 					}
 				}
 				return nil
@@ -127,16 +177,26 @@ func newListTypes() *cobra.Command {
 		},
 	}
 
+	flags := cmd.Flags()
+	flags.StringVarP(&pattern, "pattern", "p", pattern, "Only print names matching the pattern")
+
 	return cmd
 }
 
 func newListFields() *cobra.Command {
+	var pattern string
+
 	cmd := &cobra.Command{
 		Use:   "fields",
 		Short: "List fields of the struct",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
 			filename, typeName := args[0], args[1]
+
+			patternRegexp, err := compilePattern(pattern)
+			if err != nil {
+				return err
+			}
 
 			inspectFiles([]string{filename}, func(f *ast.File) error {
 				for _, decl := range f.Decls {
@@ -162,8 +222,11 @@ func newListFields() *cobra.Command {
 								continue
 							}
 							for _, fields := range fields.List {
-								for _, name := range fields.Names {
-									fmt.Println(name.Name)
+								for _, nameIdent := range fields.Names {
+									name := nameIdent.Name
+									if matchPattern(patternRegexp, name) {
+										fmt.Println(name)
+									}
 								}
 							}
 						}
@@ -174,6 +237,9 @@ func newListFields() *cobra.Command {
 			return nil
 		},
 	}
+
+	flags := cmd.Flags()
+	flags.StringVarP(&pattern, "pattern", "p", pattern, "Only print names matching the pattern")
 
 	return cmd
 }
