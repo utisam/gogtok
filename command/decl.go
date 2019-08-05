@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -25,7 +26,7 @@ func newList() *cobra.Command {
 	return cmd
 }
 
-func inspectFiles(filenames []string, fn func(f *ast.File) error) error {
+func inspectFiles(filenames []string, fn func(fset *token.FileSet, f *ast.File) error) error {
 	for _, filename := range filenames {
 		reader, err := os.Open(filename)
 		if err != nil {
@@ -38,7 +39,7 @@ func inspectFiles(filenames []string, fn func(f *ast.File) error) error {
 			return err
 		}
 
-		if err := fn(f); err != nil {
+		if err := fn(fset, f); err != nil {
 			return err
 		}
 	}
@@ -69,7 +70,7 @@ func newListFuncs() *cobra.Command {
 				return err
 			}
 
-			inspectFiles(args, func(f *ast.File) error {
+			inspectFiles(args, func(fset *token.FileSet, f *ast.File) error {
 				for _, decl := range f.Decls {
 					fnDecl, ok := decl.(*ast.FuncDecl)
 					if !ok {
@@ -106,7 +107,7 @@ func newListValues() *cobra.Command {
 				return err
 			}
 
-			inspectFiles(args, func(f *ast.File) error {
+			inspectFiles(args, func(fset *token.FileSet, f *ast.File) error {
 				for _, decl := range f.Decls {
 					genDecl, ok := decl.(*ast.GenDecl)
 					if !ok || (genDecl.Tok != token.VAR && genDecl.Tok != token.CONST) {
@@ -152,7 +153,7 @@ func newListTypes() *cobra.Command {
 				return err
 			}
 
-			inspectFiles(args, func(f *ast.File) error {
+			inspectFiles(args, func(fset *token.FileSet, f *ast.File) error {
 				for _, decl := range f.Decls {
 					genDecl, ok := decl.(*ast.GenDecl)
 					if !ok || genDecl.Tok != token.TYPE {
@@ -183,8 +184,20 @@ func newListTypes() *cobra.Command {
 	return cmd
 }
 
+type fieldPrinter func(...string)
+
+func defaultFieldPrinter(a ...string) {
+	fmt.Println(strings.Join(a, " "))
+}
+
+func nullCharFieldPrinter(a ...string) {
+	fmt.Print(strings.Join(a, "\x00"))
+	fmt.Print("\x00")
+}
+
 func newListFields() *cobra.Command {
 	var pattern string
+	var print0 bool
 
 	cmd := &cobra.Command{
 		Use:   "fields",
@@ -198,7 +211,12 @@ func newListFields() *cobra.Command {
 				return err
 			}
 
-			inspectFiles([]string{filename}, func(f *ast.File) error {
+			p := defaultFieldPrinter
+			if print0 {
+				p = nullCharFieldPrinter
+			}
+
+			inspectFiles([]string{filename}, func(fset *token.FileSet, f *ast.File) error {
 				for _, decl := range f.Decls {
 					genDecl, ok := decl.(*ast.GenDecl)
 					if !ok || genDecl.Tok != token.TYPE {
@@ -221,11 +239,15 @@ func newListFields() *cobra.Command {
 							default:
 								continue
 							}
-							for _, fields := range fields.List {
-								for _, nameIdent := range fields.Names {
+							for _, field := range fields.List {
+								for _, nameIdent := range field.Names {
 									name := nameIdent.Name
 									if matchPattern(patternRegexp, name) {
-										fmt.Println(name)
+										tag := ""
+										if field.Tag != nil {
+											tag = strings.Trim(field.Tag.Value, "`")
+										}
+										p(name, typeString(field.Type), tag)
 									}
 								}
 							}
@@ -240,6 +262,95 @@ func newListFields() *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&pattern, "pattern", "p", pattern, "Only print names matching the pattern")
+	flags.BoolVarP(&print0, "print0", "0", print0, "Print info followed by a null character")
 
 	return cmd
+}
+
+func typeString(expr ast.Expr) string {
+	b := &strings.Builder{}
+	b.Grow(int(expr.End()) - int(expr.Pos()))
+	appendExpr(b, expr)
+	return b.String()
+}
+
+func appendExpr(b *strings.Builder, expr ast.Expr) {
+	switch t := expr.(type) {
+	case nil:
+	case *ast.Ident:
+		b.WriteString(t.Name)
+	case *ast.SelectorExpr:
+		appendExpr(b, t.X)
+		b.WriteRune('.')
+		appendExpr(b, t.Sel)
+	case *ast.StarExpr:
+		b.WriteRune('*')
+		appendExpr(b, t.X)
+	case *ast.ArrayType:
+		b.WriteRune('[')
+		appendExpr(b, t.Len)
+		b.WriteRune(']')
+		appendExpr(b, t.Elt)
+	case *ast.StructType:
+		// TODO: Fields
+		b.WriteString("struct{}")
+	case *ast.FuncType:
+		numParams := t.Params.NumFields()
+		if numParams == 0 {
+			b.WriteString("func()")
+		} else {
+			b.WriteString("func(")
+			appendFieldList(b, t.Params)
+			b.WriteRune(')')
+		}
+		numResults := t.Results.NumFields()
+		if numResults == 1 {
+			b.WriteRune(' ')
+			appendFieldList(b, t.Results)
+		} else if numResults >= 2 {
+			b.WriteString(" (")
+			appendFieldList(b, t.Results)
+			b.WriteRune(')')
+		}
+	case *ast.InterfaceType:
+		// TODO: Fields
+		b.WriteString("interface{}")
+	case *ast.MapType:
+		b.WriteString("map[")
+		appendExpr(b, t.Key)
+		b.WriteString("]")
+		appendExpr(b, t.Value)
+	case *ast.ChanType:
+		if t.Dir == ast.RECV {
+			b.WriteString("<-")
+		}
+		b.WriteString("chan")
+		if t.Dir == ast.SEND {
+			b.WriteString("<-")
+		}
+		b.WriteRune(' ')
+		appendExpr(b, t.Value)
+	case *ast.BasicLit:
+		b.WriteString(t.Value)
+	default:
+		panic(fmt.Sprintf("unsupported type: %#v", expr))
+	}
+}
+
+func appendFieldList(b *strings.Builder, expr *ast.FieldList) {
+	for i, field := range expr.List {
+		if i != 0 {
+			b.WriteString(", ")
+		}
+		if len(field.Names) > 0 {
+			for j, name := range field.Names {
+				if j != 0 {
+					b.WriteString(", ")
+				}
+				b.WriteString(name.Name)
+			}
+			b.WriteRune(' ')
+		}
+		appendExpr(b, field.Type)
+	}
 }
