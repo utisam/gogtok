@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type GlueTemplateData struct {
+type glueTemplateData struct {
 	From      string
 	To        string
 	Converter string
@@ -50,7 +50,7 @@ func newGlue() *cobra.Command {
 			}
 
 			for _, field := range fields {
-				tmpl.Execute(os.Stdout, &GlueTemplateData{
+				tmpl.Execute(os.Stdout, &glueTemplateData{
 					From:      from,
 					To:        to,
 					Converter: converter,

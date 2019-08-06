@@ -1,0 +1,42 @@
+# github.com/inconshreveable/mousetrap v1.0.0
+github.com/inconshreveable/mousetrap
+# github.com/konsorten/go-windows-terminal-sequences v1.0.1
+github.com/konsorten/go-windows-terminal-sequences
+# github.com/pkg/errors v0.8.1
+github.com/pkg/errors
+# github.com/sirkon/goproxy v1.4.0
+github.com/sirkon/goproxy/gomod
+github.com/sirkon/goproxy/internal/modfile
+github.com/sirkon/goproxy/internal/modload
+github.com/sirkon/goproxy/internal/module
+github.com/sirkon/goproxy/internal/semver
+github.com/sirkon/goproxy/internal/base
+github.com/sirkon/goproxy/internal/cache
+github.com/sirkon/goproxy/internal/cfg
+github.com/sirkon/goproxy/internal/imports
+github.com/sirkon/goproxy/internal/load
+github.com/sirkon/goproxy/internal/modconv
+github.com/sirkon/goproxy/internal/modfetch
+github.com/sirkon/goproxy/internal/modfetch/codehost
+github.com/sirkon/goproxy/internal/modinfo
+github.com/sirkon/goproxy/internal/mvs
+github.com/sirkon/goproxy/internal/par
+github.com/sirkon/goproxy/internal/search
+github.com/sirkon/goproxy/internal/str
+github.com/sirkon/goproxy/internal/objabi
+github.com/sirkon/goproxy/internal/dirhash
+github.com/sirkon/goproxy/internal/get
+github.com/sirkon/goproxy/internal/web
+github.com/sirkon/goproxy/internal/web2
+github.com/sirkon/goproxy/internal/singleflight
+github.com/sirkon/goproxy/internal/work
+github.com/sirkon/goproxy/internal/browser
+github.com/sirkon/goproxy/internal/buildid
+# github.com/sirupsen/logrus v1.4.2
+github.com/sirupsen/logrus
+# github.com/spf13/cobra v0.0.5
+github.com/spf13/cobra
+# github.com/spf13/pflag v1.0.3
+github.com/spf13/pflag
+# golang.org/x/sys v0.0.0-20190422165155-953cdadca894
+golang.org/x/sys/unix

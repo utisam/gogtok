@@ -11,6 +11,7 @@ func New() *cobra.Command {
 	cmd.AddCommand(newImport())
 	cmd.AddCommand(newList())
 	cmd.AddCommand(newNew())
+	cmd.AddCommand(newPackage())
 
 	return cmd
 }
