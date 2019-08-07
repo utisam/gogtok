@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -184,7 +185,74 @@ func newListTypes() *cobra.Command {
 	return cmd
 }
 
-type fieldPrinter func(...string)
+type fieldInfo struct {
+	name      string
+	fieldType string
+	tag       string
+}
+
+func newFieldInfo(name string, typeExpr ast.Expr, tagLit *ast.BasicLit) *fieldInfo {
+	tag := ""
+	if tagLit != nil {
+		tag = strings.Trim(tagLit.Value, "`")
+	}
+
+	return &fieldInfo{
+		name:      name,
+		fieldType: typeString(typeExpr),
+		tag:       tag,
+	}
+}
+
+type fieldInfoColumn func(*fieldInfo) string
+
+func parseColumns(ss []string) ([]fieldInfoColumn, error) {
+	cols := make([]fieldInfoColumn, len(ss))
+	for i, s := range ss {
+		col, err := parseColumn(s)
+		if err != nil {
+			return nil, err
+		}
+		cols[i] = col
+	}
+	return cols, nil
+}
+
+var tagColumnPattern = regexp.MustCompile(`tag\[([^\]]+)\]`)
+
+func parseColumn(s string) (fieldInfoColumn, error) {
+	switch s {
+	case "name":
+		return func(fi *fieldInfo) string {
+			return fi.name
+		}, nil
+	case "type":
+		return func(fi *fieldInfo) string {
+			return fi.fieldType
+		}, nil
+	case "tags":
+		return func(fi *fieldInfo) string {
+			return fi.tag
+		}, nil
+	}
+
+	submatch := tagColumnPattern.FindStringSubmatch(s)
+	if submatch != nil {
+		return func(fi *fieldInfo) string {
+			return reflect.StructTag(fi.tag).Get(submatch[1])
+		}, nil
+	}
+
+	return nil, fmt.Errorf("Unknown column: %s", s)
+}
+
+func (fi *fieldInfo) toValues(cols []fieldInfoColumn) []string {
+	res := make([]string, len(cols))
+	for i, col := range cols {
+		res[i] = col(fi)
+	}
+	return res
+}
 
 func defaultFieldPrinter(a ...string) {
 	fmt.Println(strings.Join(a, " "))
@@ -196,8 +264,9 @@ func nullCharFieldPrinter(a ...string) {
 }
 
 func newListFields() *cobra.Command {
-	var pattern string
-	var print0 bool
+	pattern := ""
+	print0 := false
+	columns := []string{"name"}
 
 	cmd := &cobra.Command{
 		Use:   "fields",
@@ -214,6 +283,11 @@ func newListFields() *cobra.Command {
 			p := defaultFieldPrinter
 			if print0 {
 				p = nullCharFieldPrinter
+			}
+
+			cols, err := parseColumns(columns)
+			if err != nil {
+				return err
 			}
 
 			inspectFiles([]string{filename}, func(fset *token.FileSet, f *ast.File) error {
@@ -243,11 +317,8 @@ func newListFields() *cobra.Command {
 								for _, nameIdent := range field.Names {
 									name := nameIdent.Name
 									if matchPattern(patternRegexp, name) {
-										tag := ""
-										if field.Tag != nil {
-											tag = strings.Trim(field.Tag.Value, "`")
-										}
-										p(name, typeString(field.Type), tag)
+										info := newFieldInfo(name, field.Type, field.Tag)
+										p(info.toValues(cols)...)
 									}
 								}
 							}
@@ -263,6 +334,7 @@ func newListFields() *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVarP(&pattern, "pattern", "p", pattern, "Only print names matching the pattern")
 	flags.BoolVarP(&print0, "print0", "0", print0, "Print info followed by a null character")
+	flags.StringSliceVar(&columns, "columns", columns, "Columns to be output (name, type, tags, tag[key])")
 
 	return cmd
 }
