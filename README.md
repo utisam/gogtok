@@ -17,10 +17,7 @@ and add `//go:generate ./filename.sh` in your code.
 * `glue`: Generate glue code
 * `import [packages...]`: Generate import statement
 * `list funcs/values/types [files...]`: Parse source files and show declarations
-* `list fields [file] [name]`
+* `list fields [file] [name]`: Parse source files and show fields
 * `new [name]`: Generate new script from boilerplate
-
-TODO:
-
-* `package name [dir]`
-* `package path [dir]`
+* `package name [dir]`: Show package name of the directory
+* `package path [dir]`: Show package path of the directory
