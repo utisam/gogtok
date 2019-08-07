@@ -97,6 +97,7 @@ func newListFuncs() *cobra.Command {
 
 func newListValues() *cobra.Command {
 	var pattern string
+	var filterDeclType string
 
 	cmd := &cobra.Command{
 		Use:   "values",
@@ -115,9 +116,18 @@ func newListValues() *cobra.Command {
 						continue
 					}
 
+					declType := ""
 					for _, spec := range genDecl.Specs {
 						valSpec, ok := spec.(*ast.ValueSpec)
 						if !ok {
+							continue
+						}
+
+						if valSpec.Type != nil {
+							declType = typeString(valSpec.Type)
+						}
+
+						if filterDeclType != "" && declType != filterDeclType {
 							continue
 						}
 
@@ -137,6 +147,7 @@ func newListValues() *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&pattern, "pattern", "p", pattern, "Only print names matching the pattern")
+	flags.StringVar(&filterDeclType, "filter-decl-type", filterDeclType, "Filter by the declared type")
 
 	return cmd
 }
@@ -404,6 +415,9 @@ func appendExpr(b *strings.Builder, expr ast.Expr) {
 		appendExpr(b, t.Value)
 	case *ast.BasicLit:
 		b.WriteString(t.Value)
+	case *ast.Ellipsis:
+		b.WriteString("...")
+		appendExpr(b, t.Elt)
 	default:
 		panic(fmt.Sprintf("unsupported type: %#v", expr))
 	}

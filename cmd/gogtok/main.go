@@ -9,6 +9,7 @@ func main() {
 	formatter := &logrus.TextFormatter{}
 	formatter.DisableTimestamp = true
 	logrus.SetFormatter(formatter)
+	// logrus.SetLevel(logrus.DebugLevel)
 
 	cmd := command.New()
 	cmd.SilenceErrors = true
