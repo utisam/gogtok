@@ -6,6 +6,10 @@ import (
 )
 
 func main() {
+	formatter := &logrus.TextFormatter{}
+	formatter.DisableTimestamp = true
+	logrus.SetFormatter(formatter)
+
 	cmd := command.New()
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true

@@ -49,7 +49,7 @@ func newNew() *cobra.Command {
 
 			pn, err := getPackageName(path.Dir(filePath))
 			if err != nil {
-				logrus.WithError(err).Warn("failed to get package name from other .go files")
+				logrus.WithError(err).Warn("Failed to get package name from other .go files. Directory name will be used.")
 
 				dir, err := os.Getwd()
 				if err != nil {
@@ -65,14 +65,24 @@ func newNew() *cobra.Command {
 				return err
 			}
 
-			tmpl.Execute(os.Stdout, &newTemplateData{
+			fileName := path.Base(filePath)
+
+			f, err := os.OpenFile(filePath+".sh", os.O_CREATE, 0755)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+
+			tmpl.Execute(f, &newTemplateData{
 				Shebang:     shebang,
 				Set:         "-eu",
 				SourceGoEnv: false,
 				CDFileDir:   false,
-				FileName:    path.Base(filePath),
+				FileName:    fileName,
 				Package:     packageName,
 			})
+
+			logrus.Infof("Add '//go:generate ./%s.sh' into your go file", fileName)
 
 			return nil
 		},
