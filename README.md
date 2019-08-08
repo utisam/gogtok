@@ -83,3 +83,19 @@ gogtok list values \
     --filter-decl-type Kind \
     "${GOROOT}/src/reflect/type.go"
 ```
+
+### List name, type and tags
+
+`name`, `type`, `tags` and `tag[key]` can be used to `--columns` option.
+
+```bash
+gogtok list fields --print0 --columns 'name,type,tag[json]' file.go SomeStruct | \
+    while IFS= read -r -d '' name && read -r -d '' type && read -r -d '' tag_json
+do
+    echo "name: $name, type: $type, tag[json]: $tag_json"
+done
+```
+
+`--print0` is usefull when you want to handle types and/or tags which contain space.
+Like `find -print0`, NULL chars are used to output.
+`xargs -0` can be used to pass the regular commands.
