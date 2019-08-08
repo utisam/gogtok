@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const newTemplate = `#!{{.Shebang}}
+const newTemplate = `{{.Shebang}}
 {{if .Set}}set {{.Set}}
 {{end}}{{if .SourceGoEnv}}source <(go env)
 {{end}}{{if .CDFileDir}}cd "$(dirname $0)"
@@ -67,20 +67,22 @@ func newNew() *cobra.Command {
 
 			fileName := path.Base(filePath)
 
-			f, err := os.OpenFile(filePath+".sh", os.O_CREATE, 0755)
+			f, err := os.OpenFile(filePath+".sh", os.O_WRONLY|os.O_CREATE, 0755)
 			if err != nil {
 				return err
 			}
 			defer f.Close()
 
-			tmpl.Execute(f, &newTemplateData{
+			if err := tmpl.Execute(f, &newTemplateData{
 				Shebang:     shebang,
 				Set:         "-eu",
 				SourceGoEnv: false,
 				CDFileDir:   false,
 				FileName:    fileName,
 				Package:     packageName,
-			})
+			}); err != nil {
+				return err
+			}
 
 			logrus.Infof("Add '//go:generate ./%s.sh' into your go file", fileName)
 
