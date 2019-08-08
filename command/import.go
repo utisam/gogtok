@@ -68,6 +68,9 @@ func newImport() *cobra.Command {
 		Use:   "import",
 		Short: "Generate an import statement",
 		RunE: func(_ *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return nil
+			}
 
 			pkgs := make([]*importPackage, len(args))
 			for i, s := range args {
