@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const newTemplate = `{{.Shebang}}
+const newTemplate = `#!{{.Shebang}}
 {{if .Set}}set {{.Set}}
 {{end}}{{if .SourceGoEnv}}source <(go env)
 {{end}}{{if .CDFileDir}}cd "$(dirname $0)"
@@ -35,30 +35,37 @@ type newTemplateData struct {
 }
 
 func newNew() *cobra.Command {
-	shebang := "#!/bin/bash"
+	shebang := "/bin/bash"
 	packageName := ""
+	set := "-eu"
+	sourceGoEnv := false
+	cdFileDir := false
 
 	cmd := &cobra.Command{
 		Use:  "new",
 		Args: cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
+		Example: `  # Generate test.sh with options
+  gogtok new -sc --set '-euC' test.sh`,
+		RunE: func(cmd *cobra.Command, args []string) error {
 			filePath := args[0]
 			if strings.HasSuffix(filePath, ".sh") {
 				filePath = filePath[:len(filePath)-3]
 			}
 
-			pn, err := getPackageName(path.Dir(filePath))
-			if err != nil {
-				logrus.WithError(err).Warn("Failed to get package name from other .go files. Directory name will be used.")
-
-				dir, err := os.Getwd()
+			if packageName == "" {
+				pn, err := getPackageName(path.Dir(filePath))
 				if err != nil {
-					return err
-				}
+					logrus.WithError(err).Warn("Failed to get package name from other .go files. Directory name will be used.")
 
-				pn = path.Base(dir)
+					dir, err := os.Getwd()
+					if err != nil {
+						return err
+					}
+
+					pn = path.Base(dir)
+				}
+				packageName = pn
 			}
-			packageName = pn
 
 			tmpl, err := template.New("").Parse(newTemplate)
 			if err != nil {
@@ -75,9 +82,9 @@ func newNew() *cobra.Command {
 
 			if err := tmpl.Execute(f, &newTemplateData{
 				Shebang:     shebang,
-				Set:         "-eu",
-				SourceGoEnv: false,
-				CDFileDir:   false,
+				Set:         set,
+				SourceGoEnv: sourceGoEnv,
+				CDFileDir:   cdFileDir,
 				FileName:    fileName,
 				Package:     packageName,
 			}); err != nil {
@@ -92,6 +99,10 @@ func newNew() *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVar(&packageName, "package", packageName, "Name of package")
+	flags.StringVar(&shebang, "shebang", shebang, "Shebang")
+	flags.BoolVarP(&sourceGoEnv, "source-go-env", "s", sourceGoEnv, "Source 'go env'")
+	flags.BoolVarP(&cdFileDir, "cd-file-dir", "c", cdFileDir, "'cd FILE_DIR'")
+	flags.StringVar(&set, "set", set, "set")
 
 	return cmd
 }
