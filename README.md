@@ -1,5 +1,7 @@
 # gogtok
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/utisam/gogtok)](https://goreportcard.com/report/github.com/utisam/gogtok)
+
 Toolkit for shell script used in `go:generate`.
 
 ## Getting started
