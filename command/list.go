@@ -274,6 +274,29 @@ func nullCharFieldPrinter(a ...string) {
 	fmt.Print("\x00")
 }
 
+func getFieldsOfType(spec ast.Spec, typeName string) *ast.FieldList {
+	if typeSpec, ok := spec.(*ast.TypeSpec); ok && typeName == typeSpec.Name.Name {
+		switch specType := typeSpec.Type.(type) {
+		case *ast.StructType:
+			return specType.Fields
+		case *ast.InterfaceType:
+			return specType.Methods
+		}
+	}
+	return nil
+}
+
+func forEachFlattenField(fields *ast.FieldList, fn func(name string, fieldType ast.Expr, fieldTag *ast.BasicLit)) {
+	if fields == nil {
+		return
+	}
+	for _, field := range fields.List {
+		for _, nameIdent := range field.Names {
+			fn(nameIdent.Name, field.Type, field.Tag)
+		}
+	}
+}
+
 func newListFields() *cobra.Command {
 	pattern := ""
 	print0 := false
@@ -309,31 +332,15 @@ func newListFields() *cobra.Command {
 					}
 
 					for _, spec := range genDecl.Specs {
-						typeSpec, ok := spec.(*ast.TypeSpec)
-						if !ok {
-							continue
-						}
-
-						if typeName == typeSpec.Name.Name {
-							var fields *ast.FieldList
-							switch specType := typeSpec.Type.(type) {
-							case *ast.StructType:
-								fields = specType.Fields
-							case *ast.InterfaceType:
-								fields = specType.Methods
-							default:
-								continue
-							}
-							for _, field := range fields.List {
-								for _, nameIdent := range field.Names {
-									name := nameIdent.Name
-									if matchPattern(patternRegexp, name) {
-										info := newFieldInfo(name, field.Type, field.Tag)
-										p(info.toValues(cols)...)
-									}
+						forEachFlattenField(
+							getFieldsOfType(spec, typeName),
+							func(name string, fieldType ast.Expr, fieldTag *ast.BasicLit) {
+								if matchPattern(patternRegexp, name) {
+									info := newFieldInfo(name, fieldType, fieldTag)
+									p(info.toValues(cols)...)
 								}
-							}
-						}
+							},
+						)
 					}
 				}
 				return nil
