@@ -385,23 +385,7 @@ func appendExpr(b *strings.Builder, expr ast.Expr) {
 		// TODO: Fields
 		b.WriteString("struct{}")
 	case *ast.FuncType:
-		numParams := t.Params.NumFields()
-		if numParams == 0 {
-			b.WriteString("func()")
-		} else {
-			b.WriteString("func(")
-			appendFieldList(b, t.Params)
-			b.WriteRune(')')
-		}
-		numResults := t.Results.NumFields()
-		if numResults == 1 {
-			b.WriteRune(' ')
-			appendFieldList(b, t.Results)
-		} else if numResults >= 2 {
-			b.WriteString(" (")
-			appendFieldList(b, t.Results)
-			b.WriteRune(')')
-		}
+		appendFuncType(b, t)
 	case *ast.InterfaceType:
 		// TODO: Fields
 		b.WriteString("interface{}")
@@ -411,15 +395,7 @@ func appendExpr(b *strings.Builder, expr ast.Expr) {
 		b.WriteString("]")
 		appendExpr(b, t.Value)
 	case *ast.ChanType:
-		if t.Dir == ast.RECV {
-			b.WriteString("<-")
-		}
-		b.WriteString("chan")
-		if t.Dir == ast.SEND {
-			b.WriteString("<-")
-		}
-		b.WriteRune(' ')
-		appendExpr(b, t.Value)
+		appendChanType(b, t)
 	case *ast.BasicLit:
 		b.WriteString(t.Value)
 	case *ast.Ellipsis:
@@ -428,6 +404,38 @@ func appendExpr(b *strings.Builder, expr ast.Expr) {
 	default:
 		panic(fmt.Sprintf("unsupported type: %#v", expr))
 	}
+}
+
+func appendFuncType(b *strings.Builder, t *ast.FuncType) {
+	numParams := t.Params.NumFields()
+	if numParams == 0 {
+		b.WriteString("func()")
+	} else {
+		b.WriteString("func(")
+		appendFieldList(b, t.Params)
+		b.WriteRune(')')
+	}
+	numResults := t.Results.NumFields()
+	if numResults == 1 {
+		b.WriteRune(' ')
+		appendFieldList(b, t.Results)
+	} else if numResults >= 2 {
+		b.WriteString(" (")
+		appendFieldList(b, t.Results)
+		b.WriteRune(')')
+	}
+}
+
+func appendChanType(b *strings.Builder, t *ast.ChanType) {
+	if t.Dir == ast.RECV {
+		b.WriteString("<-")
+	}
+	b.WriteString("chan")
+	if t.Dir == ast.SEND {
+		b.WriteString("<-")
+	}
+	b.WriteRune(' ')
+	appendExpr(b, t.Value)
 }
 
 func appendFieldList(b *strings.Builder, expr *ast.FieldList) {
