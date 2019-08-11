@@ -32,7 +32,6 @@ then you must specify package.
 
 ```bash
 render_import() {
-    echo
     gogtok import \
         "text/template" \
         "crypto/rand" \
@@ -47,7 +46,6 @@ render_import() {
 
 ```bash
 render_convert() {
-    echo
     cat <<-EOS
     func convert(a *OtherStruct) *SomeStruct {
         return &SomeStruct{
